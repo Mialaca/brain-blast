@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Brain Blast — Trivia Game</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0d0d14;
+    --surface: #16161f;
+    --surface2: #1e1e2a;
+    --border: rgba(255,255,255,0.08);
+    --accent: #7c6dfa;
+    --accent2: #fa6d9a;
+    --accent3: #6dfad4;
+    --text: #f0effe;
+    --muted: rgba(240,239,254,0.5);
+    --radius: 14px;
+    --correct: #3ddc84;
+    --wrong: #ff5f7e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    position: relative;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 50% at 10% 20%, rgba(124,109,250,0.18) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 40% at 90% 80%, rgba(250,109,154,0.12) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 40% at 50% 50%, rgba(109,250,212,0.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  #app {
+    width: 100%;
+    max-width: 560px;
+    position: relative;
+    z-index: 1;
+  }
+  .screen { display: none; animation: fadeIn 0.3s ease; }
+  .screen.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* — Typography — */
+  .game-title {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2.4rem, 8vw, 3.2rem);
+    font-weight: 800;
+    letter-spacing: -1px;
+    line-height: 1;
+    margin-bottom: 6px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 60%, var(--accent3) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .tagline { font-size: 14px; color: var(--muted); margin-bottom: 2rem; letter-spacing: 0.02em; }
+
+  /* — Cards — */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.4rem 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .card-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 10px; }
+
+  /* — Input & Button — */
+  input[type=text] {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    padding: 12px 16px;
+    margin-bottom: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input[type=text]::placeholder { color: var(--muted); }
+  input[type=text]:focus { border-color: var(--accent); }
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 13px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+  }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-ghost {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    margin-top: 8px;
+  }
+  .btn-ghost:hover { background: var(--surface); }
+
+  /* — Badge — */
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 99px;
+    margin-bottom: 12px;
+  }
+  .badge-gk  { background: rgba(124,109,250,0.18); color: #b3aafd; }
+  .badge-pop { background: rgba(250,109,154,0.18); color: #fda8c2; }
+  .badge-hist{ background: rgba(250,185,109,0.18); color: #fdc878; }
+  .badge-vg  { background: rgba(109,250,212,0.18); color: #87fde0; }
+
+  /* — Progress — */
+  .meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .meta span:last-child { color: var(--text); font-weight: 500; }
+  .progress-wrap {
+    background: var(--surface2);
+    border-radius: 99px;
+    height: 4px;
+    margin-bottom: 1.2rem;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 4px;
+    border-radius: 99px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transition: width 0.4s ease;
+  }
+
+  /* — Question & Options — */
+  .question-text {
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 1.55;
+    margin-bottom: 1.2rem;
+    color: var(--text);
+  }
+  .options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .opt-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    line-height: 1.4;
+  }
+  .opt-btn:hover:not(:disabled) { background: rgba(124,109,250,0.12); border-color: var(--accent); }
+  .opt-btn:active:not(:disabled) { transform: scale(0.97); }
+  .opt-btn.correct { background: rgba(61,220,132,0.15); border-color: var(--correct); color: #90ffca; }
+  .opt-btn.wrong   { background: rgba(255,95,126,0.15);  border-color: var(--wrong);  color: #ffaabc; }
+  .opt-btn:disabled { cursor: default; }
+
+  /* — Feedback — */
+  .feedback {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 14px;
+    line-height: 1.6;
+    min-height: 22px;
+  }
+  .feedback.correct-msg { color: #90ffca; }
+
+  /* — End screen — */
+  .score-hero {
+    text-align: center;
+    padding: 1.2rem 0 0.5rem;
+  }
+  .score-num {
+    font-family: 'Syne', sans-serif;
+    font-size: 64px;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+  }
+  .score-denom { font-size: 22px; color: var(--muted); font-weight: 500; }
+  .score-msg { font-size: 15px; color: var(--muted); margin-top: 8px; }
+
+  /* — Leaderboard — */
+  .lb-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .lb-row:last-child { border-bottom: none; }
+  .lb-rank {
+    width: 22px;
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .lb-rank.top { color: var(--accent); font-weight: 700; }
+  .lb-name { flex: 1; font-weight: 500; color: var(--text); }
+  .lb-score { font-size: 13px; color: var(--muted); }
+  .lb-bar-wrap { width: 60px; background: var(--surface2); border-radius: 99px; height: 4px; }
+  .lb-bar { height: 4px; border-radius: 99px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+  .lb-empty { font-size: 13px; color: var(--muted); text-align: center; padding: 1rem 0; }
+
+  /* — Confetti — */
+  .confetti-piece {
+    position: fixed;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    pointer-events: none;
+    animation: confettiFall linear forwards;
+  }
+  @keyframes confettiFall {
+    0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+  }
+
+  /* — Divider — */
+  .divider { height: 1px; background: var(--border); margin: 4px 0 1rem; }
+
+  @media (max-width: 400px) {
+    .options { grid-template-columns: 1fr; }
+    .game-title { font-size: 2rem; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- START SCREEN -->
+  <div id="screen-start" class="screen active">
+    <h1 class="game-title">Brain Blast</h1>
+    <p class="tagline">10 questions · General knowledge · Pop culture · History · Video games</p>
+    <div class="card">
+      <p class="card-label">Your name</p>
+      <input type="text" id="player-name" placeholder="Enter your name" maxlength="24" />
+      <button class="btn btn-primary" onclick="startGame()">Start quiz →</button>
+    </div>
+    <div class="card" id="lb-start-card">
+      <p class="card-label">Leaderboard</p>
+      <div id="lb-start"></div>
+    </div>
+  </div>
+
+  <!-- QUIZ SCREEN -->
+  <div id="screen-quiz" class="screen">
+    <div class="meta">
+      <span id="q-counter">Question 1 of 10</span>
+      <span id="score-live">Score: 0</span>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-fill" id="prog" style="width:0%"></div>
+    </div>
+    <div class="card">
+      <span class="badge badge-gk" id="cat-badge">General knowledge</span>
+      <p class="question-text" id="q-text"></p>
+      <div class="options" id="opts"></div>
+      <p class="feedback" id="feedback"></p>
+    </div>
+    <button class="btn btn-primary" id="next-btn" onclick="nextQuestion()" style="display:none;">Next question →</button>
+  </div>
+
+  <!-- END SCREEN -->
+  <div id="screen-end" class="screen">
+    <div class="score-hero">
+      <div>
+        <span class="score-num" id="final-num">0</span>
+        <span class="score-denom">&thinsp;/ 10</span>
+      </div>
+      <p class="score-msg" id="final-msg"></p>
+    </div>
+    <div style="height:1.5rem;"></div>
+    <div class="card">
+      <p class="card-label">Leaderboard</p>
+      <div id="lb-end"></div>
+    </div>
+    <button class="btn btn-primary" onclick="resetGame()">Play again →</button>
+    <button class="btn btn-ghost" onclick="shareScore()">Share score</button>
+  </div>
+
+</div>
+
+<script>
+const Q = [
+  { cat:"General knowledge", badge:"badge-gk",  q:"What is the chemical symbol for gold?",                                opts:["Au","Ag","Gd","Go"],                                   ans:0, fact:"Au comes from 'aurum', the Latin word for gold." },
+  { cat:"General knowledge", badge:"badge-gk",  q:"How many sides does a hexagon have?",                                  opts:["5","6","7","8"],                                       ans:1, fact:"'Hex' comes from the Greek word for six." },
+  { cat:"General knowledge", badge:"badge-gk",  q:"What is the largest planet in our solar system?",                     opts:["Saturn","Uranus","Neptune","Jupiter"],                  ans:3, fact:"Jupiter is so large that all other planets could fit inside it." },
+  { cat:"General knowledge", badge:"badge-gk",  q:"How many bones are in the adult human body?",                         opts:["196","206","216","226"],                               ans:1, fact:"Babies are born with ~270 bones; many fuse as we grow, leaving 206." },
+  { cat:"Pop culture",        badge:"badge-pop", q:"Which singer released the album 'Renaissance' in 2022?",             opts:["Rihanna","Taylor Swift","Beyoncé","Adele"],             ans:2, fact:"Renaissance was Beyoncé's seventh solo studio album." },
+  { cat:"Pop culture",        badge:"badge-pop", q:"In the MCU, what is Tony Stark's superhero name?",                   opts:["Captain America","Thor","Iron Man","Black Panther"],   ans:2, fact:"Tony Stark first appeared as Iron Man in the 2008 film." },
+  { cat:"Pop culture",        badge:"badge-pop", q:"Which streaming platform created 'Stranger Things'?",                opts:["HBO","Disney+","Netflix","Hulu"],                      ans:2, fact:"Stranger Things premiered on Netflix in July 2016." },
+  { cat:"History",            badge:"badge-hist",q:"In which year did World War II end?",                                opts:["1943","1944","1945","1946"],                           ans:2, fact:"V-E Day (Europe) was May 8, 1945; V-J Day (Japan) was September 2, 1945." },
+  { cat:"History",            badge:"badge-hist",q:"Which ancient wonder was located in Alexandria, Egypt?",             opts:["Colossus of Rhodes","The Great Lighthouse","Hanging Gardens","Statue of Zeus"], ans:1, fact:"The Lighthouse of Alexandria stood for over 1,500 years." },
+  { cat:"History",            badge:"badge-hist",q:"Who was the first person to walk on the moon?",                      opts:["Buzz Aldrin","Yuri Gagarin","Neil Armstrong","John Glenn"], ans:2, fact:"Neil Armstrong stepped onto the lunar surface on July 20, 1969." },
+  { cat:"Video games",        badge:"badge-vg",  q:"In Minecraft, what do you need to craft a crafting table?",          opts:["8 planks","4 wood planks","4 sticks","2 logs"],        ans:1, fact:"Four wooden planks arranged 2x2 make a crafting table." },
+  { cat:"Video games",        badge:"badge-vg",  q:"Which game features a character named Master Chief?",                opts:["Call of Duty","Halo","Gears of War","Destiny"],        ans:1, fact:"Master Chief first appeared in Halo: Combat Evolved in 2001." },
+  { cat:"Video games",        badge:"badge-vg",  q:"In Super Mario Bros., what power-up lets Mario shoot fireballs?",   opts:["Super Mushroom","Star","Fire Flower","1-Up Mushroom"], ans:2, fact:"The Fire Flower has been in Mario games since the original 1985 NES release." },
+  { cat:"Pop culture",        badge:"badge-pop", q:"What color is the 'Grimace' character at McDonald's?",               opts:["Green","Orange","Purple","Blue"],                      ans:2, fact:"Grimace was originally called 'Evil Grimace' before becoming a friendly purple character." },
+  { cat:"History",            badge:"badge-hist",q:"Which country gifted the Statue of Liberty to the United States?",  opts:["United Kingdom","France","Germany","Spain"],           ans:1, fact:"France gifted the statue in 1886 as a symbol of friendship and democracy." },
+];
+
+let deck = [], cur = 0, score = 0, answered = false, playerName = "";
+let lb = JSON.parse(localStorage.getItem("bb_lb2") || "[]");
+
+function saveLB(){ try{ localStorage.setItem("bb_lb2", JSON.stringify(lb)); }catch(e){} }
+
+function renderLB(id){
+  const el = document.getElementById(id);
+  if(!lb.length){ el.innerHTML = '<p class="lb-empty">No scores yet — be the first!</p>'; return; }
+  const sorted = [...lb].sort((a,b)=>b.score-a.score).slice(0,8);
+  el.innerHTML = sorted.map((e,i)=>`
+    <div class="lb-row">
+      <span class="lb-rank${i<3?' top':''}">${i===0?'★':i+1}</span>
+      <span class="lb-name">${esc(e.name)}</span>
+      <div class="lb-bar-wrap"><div class="lb-bar" style="width:${e.score*10}%"></div></div>
+      <span class="lb-score">${e.score}/10</span>
+    </div>`).join('');
+}
+
+function esc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]; } }
+
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function startGame(){
+  playerName = document.getElementById('player-name').value.trim() || 'Anonymous';
+  deck = [...Q]; shuffle(deck); deck = deck.slice(0,10);
+  cur=0; score=0; answered=false;
+  show('screen-quiz');
+  renderQ();
+}
+
+function renderQ(){
+  const q = deck[cur];
+  document.getElementById('q-counter').textContent = `Question ${cur+1} of 10`;
+  document.getElementById('score-live').textContent = `Score: ${score}`;
+  document.getElementById('prog').style.width = `${cur*10}%`;
+  const b = document.getElementById('cat-badge');
+  b.textContent = q.cat; b.className = `badge ${q.badge}`;
+  document.getElementById('q-text').textContent = q.q;
+  const fb = document.getElementById('feedback');
+  fb.textContent=''; fb.className='feedback';
+  document.getElementById('next-btn').style.display='none';
+  answered=false;
+  document.getElementById('opts').innerHTML = q.opts.map((o,i)=>
+    `<button class="opt-btn" onclick="pick(${i})">${esc(o)}</button>`
+  ).join('');
+}
+
+function pick(i){
+  if(answered) return;
+  answered=true;
+  const q=deck[cur];
+  const btns=document.querySelectorAll('.opt-btn');
+  btns.forEach(b=>b.disabled=true);
+  btns[q.ans].classList.add('correct');
+  const fb=document.getElementById('feedback');
+  if(i===q.ans){
+    score++;
+    fb.textContent='Correct! '+q.fact;
+    fb.className='feedback correct-msg';
+  } else {
+    btns[i].classList.add('wrong');
+    fb.textContent='Not quite. '+q.fact;
+    fb.className='feedback';
+  }
+  document.getElementById('score-live').textContent=`Score: ${score}`;
+  if(cur<9){
+    document.getElementById('next-btn').style.display='block';
+  } else {
+    setTimeout(endGame,700);
+  }
+}
+
+function nextQuestion(){ cur++; renderQ(); }
+
+const msgs = ["Keep at it — practice makes perfect!","Not bad, keep going!","Solid effort!","Nice work!","Great score!","Almost perfect!","Perfect score! You're a legend!"];
+function endGame(){
+  lb.push({name:playerName, score, date:Date.now()});
+  saveLB();
+  document.getElementById('final-num').textContent=score;
+  document.getElementById('final-msg').textContent=`${playerName} · ${msgs[Math.min(score,6)]}`;
+  renderLB('lb-end');
+  if(score>=7) launchConfetti();
+  show('screen-end');
+}
+
+function resetGame(){ renderLB('lb-start'); show('screen-start'); }
+
+function shareScore(){
+  const txt=`I scored ${score}/10 on Brain Blast! 🧠⚡ Can you beat me? ${location.href}`;
+  if(navigator.share){ navigator.share({text:txt}); }
+  else { navigator.clipboard.writeText(txt).then(()=>alert('Score copied to clipboard!')); }
+}
+
+function launchConfetti(){
+  const colors=['#7c6dfa','#fa6d9a','#6dfad4','#fad96d','#fa9d6d'];
+  for(let i=0;i<60;i++){
+    const el=document.createElement('div');
+    el.className='confetti-piece';
+    el.style.cssText=`
+      left:${Math.random()*100}vw;
+      top:-10px;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      animation-duration:${1.5+Math.random()*2}s;
+      animation-delay:${Math.random()*0.8}s;
+      width:${6+Math.random()*6}px;
+      height:${6+Math.random()*6}px;
+      border-radius:${Math.random()>0.5?'50%':'2px'};
+    `;
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(), 3500);
+  }
+}
+
+document.getElementById('player-name').addEventListener('keydown',e=>{ if(e.key==='Enter') startGame(); });
+renderLB('lb-start');
+</script>
+</body>
+</html>
